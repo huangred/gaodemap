@@ -1,3 +1,4 @@
+import 'package:amap_map_fluttify_example/map/address_search.dart';
 import 'package:amap_map_fluttify_example/utils/misc.dart';
 import 'package:amap_map_fluttify_example/utils/next_latlng.dart';
 import 'package:flutter/cupertino.dart';
@@ -231,6 +232,13 @@ class _AddressCNState extends State<AddressCN> with NextLatLng {
         ],
       ),
     );
+
+    current = GestureDetector(
+        onTap: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => AddressSearch()),
+            ),
+        child: current);
 
     return current;
   }
