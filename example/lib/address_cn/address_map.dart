@@ -1,9 +1,11 @@
-import 'package:amap_map_fluttify_example/map/address_search.dart';
+import 'address_search.dart';
 import 'package:amap_map_fluttify_example/utils/misc.dart';
 import 'package:amap_map_fluttify_example/utils/next_latlng.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:amap_map_fluttify/amap_map_fluttify.dart';
+
+import 'poi_item.dart';
 
 List<String> _tabs = [
   '全部',
@@ -12,16 +14,16 @@ List<String> _tabs = [
   '休闲娱乐',
 ];
 
-class AddressCN extends StatefulWidget {
-  AddressCN({Key key}) : super(key: key);
+class AddressMap extends StatefulWidget {
+  AddressMap({Key key}) : super(key: key);
 
   @override
-  _AddressCNState createState() => _AddressCNState();
+  _AddressMapState createState() => _AddressMapState();
 }
 
-class _AddressCNState extends State<AddressCN> with NextLatLng {
+class _AddressMapState extends State<AddressMap> with NextLatLng {
   AmapController _controller;
-  Location _location;
+  Location _myLocation;
   List<Poi> _pois;
   Poi _selected;
   bool _loading = true;
@@ -45,9 +47,9 @@ class _AddressCNState extends State<AddressCN> with NextLatLng {
   }
 
   Future _init() async {
-    if (await requestPermission()) _location = await AmapLocation.instance.fetchLocation();
+    if (await requestPermission()) _myLocation = await AmapLocation.instance.fetchLocation();
 
-    await _getPOIs(_location.latLng);
+    await _getPOIs(_myLocation.latLng);
   }
 
   Future _getPOIs(LatLng latlng) async {
@@ -80,7 +82,7 @@ class _AddressCNState extends State<AddressCN> with NextLatLng {
                         tilt: 90,
                         zoomLevel: 19,
                         showCompass: true,
-                        centerCoordinate: _selected == null ? _location.latLng : _selected.latLng,
+                        centerCoordinate: _selected == null ? _myLocation.latLng : _selected.latLng,
                         maskDelay: Duration(milliseconds: 500),
                         onMapCreated: (controller) async {
                           _controller = controller;
@@ -100,7 +102,7 @@ class _AddressCNState extends State<AddressCN> with NextLatLng {
                           child: Icon(Icons.location_pin, color: Colors.red, size: 36),
                         ),
                       ),
-                      Positioned(right: 10, bottom: 5, child: _locationButton()),
+                      Positioned(right: 10, bottom: 5, child: _myLocationButton()),
                     ],
                   ),
                 ),
@@ -113,7 +115,7 @@ class _AddressCNState extends State<AddressCN> with NextLatLng {
     );
   }
 
-  Widget _locationButton() {
+  Widget _myLocationButton() {
     Widget current = Container(
       decoration: BoxDecoration(
         color: Colors.white,
@@ -129,7 +131,7 @@ class _AddressCNState extends State<AddressCN> with NextLatLng {
         setState(() {
           _tab = _tabs[0];
         });
-        await _getPOIs(_location.latLng);
+        await _getPOIs(_myLocation.latLng);
         await _controller.setCenterCoordinate(_selected.latLng);
         _moveByUser = false;
       },
@@ -140,136 +142,44 @@ class _AddressCNState extends State<AddressCN> with NextLatLng {
   }
 
   Widget _renderPOIs() {
+    List<Widget> children = _pois
+        .map((e) => POIItem(
+              poi: e,
+              selected: e.poiId == _selected.poiId,
+              onClick: () async {
+                _selected = e;
+                await _controller.setCenterCoordinate(_selected.latLng);
+                _moveByUser = false;
+                setState(() {});
+              },
+            ))
+        .toList();
     Widget current = Column(
       children: [
-        _renderSearch(),
-        _renderTabs(),
+        _Search(
+          callback: (v) async {
+            await _getPOIs(v.latLng);
+            _controller.setCenterCoordinate(_selected.latLng);
+            _moveByUser = false;
+          },
+        ),
+        _Tabs(
+          selected: _tab,
+          onClick: (selected) async {
+            _tab = selected;
+            await _getPOIs(_selected.latLng);
+            _controller.setCenterCoordinate(_selected.latLng);
+            _moveByUser = false;
+          },
+        ),
         Expanded(
           child: _loading
               ? Center(child: CupertinoActivityIndicator(radius: 16))
-              : ListView(
-                  padding: EdgeInsets.symmetric(horizontal: 10),
-                  children: _pois.map((e) => _renderPOI(e)).toList(),
-                ),
+              : ListView(padding: EdgeInsets.symmetric(horizontal: 10), children: children),
         ),
-        _renderOKButton(),
+        _loading ? Container() : _renderOKButton(),
       ],
     );
-
-    return current;
-  }
-
-  Widget _renderPOI(Poi poi) {
-    Widget title = Text(poi.title, style: TextStyle(color: Colors.black, fontSize: 15));
-
-    String addr = poi.provinceName + poi.cityName + poi.adName + poi.address;
-    Widget address = Text(addr, style: TextStyle(color: Colors.grey[600], fontSize: 13));
-
-    Widget current = Row(
-      children: [
-        Expanded(
-          child: Column(
-            children: [
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Container(
-                    padding: EdgeInsets.only(top: 3, left: 3),
-                    child: Icon(Icons.location_pin, color: Colors.grey[400], size: 18),
-                  ),
-                  Expanded(child: title),
-                ],
-              ),
-              SizedBox(height: 3),
-              Row(
-                children: [
-                  Container(
-                    padding: EdgeInsets.only(top: 3, left: 3),
-                    child: Icon(Icons.location_pin, color: Colors.transparent, size: 18),
-                  ),
-                  Expanded(child: address),
-                ],
-              ),
-            ],
-          ),
-        ),
-        Container(
-          margin: EdgeInsets.only(left: 20),
-          child: Icon(Icons.done, color: _selected.poiId == poi.poiId ? Colors.blue : Colors.transparent),
-        ),
-      ],
-    );
-    current = Container(
-      padding: EdgeInsets.fromLTRB(0, 10, 0, 10),
-      decoration: BoxDecoration(border: Border(bottom: BorderSide(color: Colors.grey[300], width: 0.5))),
-      child: current,
-    );
-
-    current = GestureDetector(
-        onTap: () async {
-          _selected = poi;
-          await _controller.setCenterCoordinate(_selected.latLng);
-          _moveByUser = false;
-          setState(() {});
-        },
-        child: current);
-
-    return current;
-  }
-
-  Widget _renderSearch() {
-    Widget current = Container(
-      decoration: BoxDecoration(
-        color: Colors.grey[200],
-        borderRadius: BorderRadius.circular(5.0),
-      ),
-      padding: EdgeInsets.symmetric(horizontal: 10.0, vertical: 5.0),
-      margin: EdgeInsets.fromLTRB(15, 10, 15, 10),
-      child: Row(
-        children: [
-          Container(padding: EdgeInsets.only(top: 2), child: Icon(Icons.search, size: 18, color: Colors.grey[500])),
-          Text('搜索地点', style: TextStyle(color: Colors.grey[500])),
-        ],
-      ),
-    );
-
-    current = GestureDetector(
-        onTap: () => Navigator.push(
-              context,
-              MaterialPageRoute(builder: (_) => AddressSearch()),
-            ),
-        child: current);
-
-    return current;
-  }
-
-  Widget _renderTabs() {
-    List<Widget> children = _tabs.map((e) {
-      Widget txt = Text(e, style: TextStyle(color: _tab == e ? Colors.blue : Colors.black));
-
-      txt = GestureDetector(
-        onTap: () async {
-          _tab = e;
-          await _getPOIs(_selected.latLng);
-          _controller.setCenterCoordinate(_selected.latLng);
-          _moveByUser = false;
-        },
-        child: txt,
-      );
-
-      return txt;
-    }).toList();
-
-    Widget current = Row(
-      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-      children: children,
-    );
-
-    current = Container(
-        decoration: BoxDecoration(border: Border(bottom: BorderSide(color: Colors.grey[300], width: 0.5))),
-        padding: EdgeInsets.only(bottom: 10.0),
-        margin: EdgeInsets.fromLTRB(15, 0, 15, 0),
-        child: current);
 
     return current;
   }
@@ -293,6 +203,77 @@ class _AddressCNState extends State<AddressCN> with NextLatLng {
       ),
       child: current,
     );
+
+    return current;
+  }
+}
+
+class _Search extends StatelessWidget {
+  final Function(Poi poi) callback;
+
+  const _Search({Key key, @required this.callback}) : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    Widget current = Container(
+      decoration: BoxDecoration(
+        color: Colors.grey[200],
+        borderRadius: BorderRadius.circular(5.0),
+      ),
+      padding: EdgeInsets.symmetric(horizontal: 10.0, vertical: 5.0),
+      margin: EdgeInsets.fromLTRB(15, 10, 15, 10),
+      child: Row(
+        children: [
+          Container(padding: EdgeInsets.only(top: 2), child: Icon(Icons.search, size: 18, color: Colors.grey[500])),
+          SizedBox(width: 5),
+          Text('搜索地点', style: TextStyle(color: Colors.grey[500])),
+        ],
+      ),
+    );
+
+    current = GestureDetector(
+        onTap: () async {
+          var ret = await Navigator.push(context, MaterialPageRoute(builder: (_) => AddressSearch()));
+          if (ret == null) return;
+
+          this.callback(ret);
+        },
+        child: current);
+
+    return current;
+  }
+}
+
+class _Tabs extends StatelessWidget {
+  final String selected;
+
+  final Function(String selected) onClick;
+
+  const _Tabs({Key key, @required this.selected, @required this.onClick}) : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    List<Widget> children = _tabs.map((e) {
+      Widget txt = Text(e, style: TextStyle(color: selected == e ? Colors.blue : Colors.black));
+
+      txt = GestureDetector(
+        onTap: () => this.onClick(e),
+        child: txt,
+      );
+
+      return txt;
+    }).toList();
+
+    Widget current = Row(
+      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+      children: children,
+    );
+
+    current = Container(
+        decoration: BoxDecoration(border: Border(bottom: BorderSide(color: Colors.grey[300], width: 0.5))),
+        padding: EdgeInsets.only(bottom: 10.0),
+        margin: EdgeInsets.fromLTRB(15, 0, 15, 0),
+        child: current);
 
     return current;
   }

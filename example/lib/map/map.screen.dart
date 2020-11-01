@@ -1,4 +1,4 @@
-import 'package:amap_map_fluttify_example/map/address_cn.dart';
+import 'package:amap_map_fluttify_example/address_cn/address_map.dart';
 import 'package:decorated_flutter/decorated_flutter.dart';
 import 'package:demo_widgets/demo_widgets.dart';
 import 'package:flutter/material.dart';
@@ -137,7 +137,7 @@ class MapDemo extends StatelessWidget {
         GestureDetector(
             onTap: () => Navigator.push(
                   context,
-                  MaterialPageRoute(builder: (_) => AddressCN()),
+                  MaterialPageRoute(builder: (_) => AddressMap()),
                 ),
             child: Text('GAO DE')),
       ],

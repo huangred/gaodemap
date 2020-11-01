@@ -1,5 +1,8 @@
-import 'package:flutter/gestures.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:amap_map_fluttify/amap_map_fluttify.dart';
+
+import 'poi_item.dart';
 
 class AddressSearch extends StatefulWidget {
   AddressSearch({Key key}) : super(key: key);
@@ -14,6 +17,10 @@ class _AddressSearchState extends State<AddressSearch> {
   TextEditingController _txtController;
   bool _showClear = false;
 
+  bool _searching;
+
+  List<Poi> _pois;
+
   @override
   void dispose() {
     _txtController?.dispose();
@@ -25,9 +32,10 @@ class _AddressSearchState extends State<AddressSearch> {
   void initState() {
     _txtController = TextEditingController();
     _txtController.addListener(() {
-      if (_showClear) return;
-      _showClear = _txtController.text.length > 0;
-      setState(() {});
+      if (_showClear != _txtController.text.length > 0)
+        setState(() {
+          _showClear = _txtController.text.length > 0;
+        });
     });
     super.initState();
   }
@@ -41,14 +49,15 @@ class _AddressSearchState extends State<AddressSearch> {
       ),
       body: Column(
         children: [
-          _renderSearch(),
+          _renderSearchInput(),
           Divider(height: 1.0),
+          Expanded(child: _searchResult()),
         ],
       ),
     );
   }
 
-  Widget _renderSearch() {
+  Widget _renderSearchInput() {
     Widget current = Container(
       height: 40,
       decoration: BoxDecoration(
@@ -119,6 +128,7 @@ class _AddressSearchState extends State<AddressSearch> {
     current = GestureDetector(
       onTap: () {
         setState(() {
+          _searching = null;
           _showClear = false;
           _txtController.text = '';
         });
@@ -134,6 +144,8 @@ class _AddressSearchState extends State<AddressSearch> {
 
     current = GestureDetector(
       onTap: () async {
+        FocusScope.of(context).requestFocus(FocusNode());
+        await Future.delayed(Duration(milliseconds: 100));
         String keywords = _txtController.text.trim();
         if (keywords.length == 0) {
           _scaffoldkey.currentState.removeCurrentSnackBar();
@@ -145,10 +157,40 @@ class _AddressSearchState extends State<AddressSearch> {
 
           return;
         }
+
+        setState(() => _searching = true);
+        _pois = await AmapSearch.instance.searchKeyword(keywords, pageSize: 40);
+        setState(() {
+          if (_searching) _searching = false;
+        });
       },
       child: current,
     );
 
     return current;
+  }
+
+  Widget _searchResult() {
+    if (_searching == null || _txtController.text.trim() == '') return Container();
+
+    if (_searching)
+      return Center(
+        child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [CupertinoActivityIndicator(radius: 8), Text(' 查询中...')]),
+      );
+
+    if (_pois != null && _pois.length == 0) return Center(child: Text('没有找到匹配的结果'));
+
+    List<Widget> children = _pois
+        .map((e) => POIItem(
+              poi: e,
+              selected: false,
+              showSelected: false,
+              onClick: () => Navigator.of(context).pop(e),
+            ))
+        .toList();
+
+    return ListView(padding: EdgeInsets.symmetric(horizontal: 10), children: children);
   }
 }
