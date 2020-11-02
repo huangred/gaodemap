@@ -186,7 +186,7 @@ class _AddressSearchState extends State<AddressSearch> {
         .map((e) => POIItem(
               poi: e,
               selected: false,
-              showSelected: false,
+              showSelectedIcon: false,
               onClick: () => Navigator.of(context).pop(e),
             ))
         .toList();

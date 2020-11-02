@@ -52,16 +52,22 @@ class _AddressMapState extends State<AddressMap> with NextLatLng {
     await _getPOIs(_myLocation.latLng);
   }
 
-  Future _getPOIs(LatLng latlng) async {
+  Future _getPOIs(LatLng latlng, {bool reset = true}) async {
     setState(() => _loading = true);
 
     String keyword = _tab == _tabs[0] ? '' : _tab;
 
     _pois = await AmapSearch.instance.searchAround(latlng, keyword: keyword, type: '', pageSize: 40, radius: 5000);
 
-    if (_pois != null && _pois.length > 0) _selected = _pois[0];
+    if (_pois != null && _pois.length > 0 && reset) _selected = _pois[0];
 
     setState(() => _loading = false);
+  }
+
+  Future _setCenterCoordinate(LatLng latLng, {bool reset = true}) async {
+    await _getPOIs(latLng, reset: reset);
+    await _controller.setCenterCoordinate(_selected.latLng);
+    _moveByUser = false;
   }
 
   @override
@@ -98,9 +104,8 @@ class _AddressMapState extends State<AddressMap> with NextLatLng {
                       ),
                       Center(
                         child: Container(
-                          margin: EdgeInsets.only(bottom: 10),
-                          child: Icon(Icons.location_pin, color: Colors.red, size: 36),
-                        ),
+                            margin: EdgeInsets.only(bottom: 10),
+                            child: Icon(Icons.location_pin, color: Colors.red, size: 36)),
                       ),
                       Positioned(right: 10, bottom: 5, child: _myLocationButton()),
                     ],
@@ -128,12 +133,8 @@ class _AddressMapState extends State<AddressMap> with NextLatLng {
 
     current = GestureDetector(
       onTap: () async {
-        setState(() {
-          _tab = _tabs[0];
-        });
-        await _getPOIs(_myLocation.latLng);
-        await _controller.setCenterCoordinate(_selected.latLng);
-        _moveByUser = false;
+        setState(() => _tab = _tabs[0]);
+        await _setCenterCoordinate(_myLocation.latLng);
       },
       child: current,
     );
@@ -156,20 +157,15 @@ class _AddressMapState extends State<AddressMap> with NextLatLng {
         .toList();
     Widget current = Column(
       children: [
-        _Search(
-          callback: (v) async {
-            await _getPOIs(v.latLng);
-            _controller.setCenterCoordinate(_selected.latLng);
-            _moveByUser = false;
-          },
-        ),
+        _Search(callback: (v) async {
+          _tab = _tabs[0];
+          _setCenterCoordinate(v.latLng);
+        }),
         _Tabs(
           selected: _tab,
           onClick: (selected) async {
             _tab = selected;
-            await _getPOIs(_selected.latLng);
-            _controller.setCenterCoordinate(_selected.latLng);
-            _moveByUser = false;
+            await _setCenterCoordinate(_selected.latLng, reset: false);
           },
         ),
         Expanded(

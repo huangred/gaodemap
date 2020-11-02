@@ -5,9 +5,9 @@ class POIItem extends StatelessWidget {
   final Poi poi;
   final bool selected;
   final Function onClick;
-  final showSelected;
+  final bool showSelectedIcon;
 
-  const POIItem({Key key, @required this.poi, @required this.selected, this.onClick, this.showSelected})
+  const POIItem({Key key, @required this.poi, @required this.selected, this.onClick, this.showSelectedIcon})
       : super(key: key);
 
   @override
@@ -45,7 +45,7 @@ class POIItem extends StatelessWidget {
             ],
           ),
         ),
-        this.showSelected == false
+        this.showSelectedIcon == false
             ? Container()
             : Container(
                 margin: EdgeInsets.only(left: 20),
